@@ -1,24 +1,21 @@
-const User = require('../models/user.model'); // Importe le modèle User
-const bcrypt = require('bcryptjs'); // Pour la comparaison des mots de passe
-const jwt = require('jsonwebtoken'); // Pour générer et vérifier les tokens JWT
+const User = require('../models/user.model');
+const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
 
 // Fonction d'inscription d'un nouvel utilisateur
 exports.register = async (req, res) => {
     try {
         const { nom, prenom, email, mot_de_passe, telephone, role, photo_profil } = req.body;
 
-        // 1. Validation de base des entrées (vous pouvez ajouter des validations plus complexes ici)
         if (!email || !mot_de_passe || !nom) {
             return res.status(400).json({ message: 'Email, mot de passe et nom sont requis.' });
         }
 
-        // 2. Vérifier si l'utilisateur existe déjà
         const existingUser = await User.findByEmail(email);
         if (existingUser) {
             return res.status(409).json({ message: 'Un utilisateur avec cet email existe déjà.' });
         }
 
-        // 3. Créer le nouvel utilisateur via le modèle
         const newUser = {
             nom,
             prenom,
@@ -26,25 +23,14 @@ exports.register = async (req, res) => {
             mot_de_passe,
             telephone,
             role: role || 'passager',
-            photo_profil 
+            photo_profil
         };
         const createdUser = await User.create(newUser);
 
-        // 4. Générer un token JWT pour l'authentification (connexion automatique après inscription)
-        const token = jwt.sign(
-            { id_user: createdUser.id_user, email: createdUser.email, role: createdUser.role },
-            process.env.JWT_SECRET,
-            { expiresIn: '1h' } // Le token expire après 1 heure
-        );
-
-        // 5. Répondre avec l'utilisateur créé et le token
-        // Ne pas renvoyer le mot de passe haché !
-        const { mot_de_passe: _, ...userWithoutPassword } = createdUser; // Destructuring pour exclure le mot de passe
-
+        const { mot_de_passe: _, ...userWithoutPassword } = createdUser;
         res.status(201).json({
-            message: 'Inscription réussie !',
-            user: userWithoutPassword,
-            token
+            message: 'Inscription réussie ! Vous pouvez maintenant vous connecter.',
+            user: userWithoutPassword
         });
 
     } catch (error) {
@@ -58,36 +44,39 @@ exports.login = async (req, res) => {
     try {
         const { email, mot_de_passe } = req.body;
 
-        // 1. Validation de base
         if (!email || !mot_de_passe) {
             return res.status(400).json({ message: 'Email et mot de passe sont requis.' });
         }
 
-        // 2. Trouver l'utilisateur par email
         const user = await User.findByEmail(email);
         if (!user) {
             return res.status(401).json({ message: 'Identifiants invalides (email ou mot de passe incorrect).' });
         }
 
-        // 3. Comparer le mot de passe fourni avec le mot de passe haché de la DB
         const isMatch = await bcrypt.compare(mot_de_passe, user.mot_de_passe);
         if (!isMatch) {
             return res.status(401).json({ message: 'Identifiants invalides (email ou mot de passe incorrect).' });
         }
 
-        // 4. Générer un token JWT
+        // Générer un token JWT
         const token = jwt.sign(
             { id_user: user.id_user, email: user.email, role: user.role },
             process.env.JWT_SECRET,
             { expiresIn: '1h' }
         );
 
-        // 5. Répondre avec l'utilisateur (sans mot de passe) et le token
-        const { mot_de_passe: _, ...userWithoutPassword } = user;
+        // Envoyer le token dans un cookie HTTP-only pour la persistance
+        res.cookie('token', token, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'Lax',
+            maxAge: 3600000
+        });
+        // Ne pas retourner le mot de passe dans la réponse
+        const { mot_de_passe: userPassword, ...userWithoutPassword } = user;
         res.status(200).json({
             message: 'Connexion réussie !',
-            user: userWithoutPassword,
-            token
+            user: userWithoutPassword
         });
 
     } catch (error) {
@@ -99,9 +88,7 @@ exports.login = async (req, res) => {
 // Fonction pour récupérer le profil de l'utilisateur connecté
 exports.getProfile = async (req, res) => {
     try {
-        // L'ID de l'utilisateur est extrait du token JWT par le middleware d'authentification
-        // et placé dans req.user (req.user.id_user)
-        const userId = req.user.id_user; // Assurez-vous d'avoir un middleware d'authentification qui peuple req.user
+        const userId = req.user.id_user;
 
         const user = await User.findById(userId);
         if (!user) {
@@ -120,10 +107,8 @@ exports.getProfile = async (req, res) => {
 // Fonction pour mettre à jour le profil de l'utilisateur connecté
 exports.updateProfile = async (req, res) => {
     try {
-        const userId = req.user.id_user; // ID de l'utilisateur du token
-        const userData = req.body; // Données à mettre à jour
-
-        // Optionnel: Validation des données de userData ici
+        const userId = req.user.id_user;
+        const userData = req.body;
 
         const updatedUser = await User.update(userId, userData);
 
@@ -146,7 +131,7 @@ exports.updateProfile = async (req, res) => {
 // Fonction pour supprimer le profil de l'utilisateur connecté
 exports.deleteProfile = async (req, res) => {
     try {
-        const userId = req.user.id_user; // ID de l'utilisateur du token
+        const userId = req.user.id_user;
 
         const deletedUser = await User.delete(userId);
 
@@ -240,5 +225,47 @@ exports.deleteUserById = async (req, res) => {
     } catch (error) {
         console.error('Erreur lors de la suppression de l\'utilisateur par ID (Admin) :', error);
         res.status(500).json({ message: 'Erreur interne du serveur lors de la suppression de l\'utilisateur.' });
+    }
+};
+
+exports.logout = (req, res) => {
+    res.clearCookie('token', {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'Lax',
+    });
+    res.status(200).json({ message: 'Déconnexion réussie.' });
+};
+
+// Récupérer les informations de l'utilisateur authentifié
+exports.getMe = async (req, res) => {
+    try {
+        console.log("infos user: ", req.user);
+        // Le middleware `authenticateToken` a déjà ajouté les informations de l'utilisateur
+        // à `req.user` si le token est valide.
+        if (!req.user || !req.user.id_user) {
+            // Cela ne devrait normalement pas arriver si authenticateToken fonctionne,
+            // mais c'est une sécurité.
+            return res.status(401).json({ message: 'Non authentifié.' });
+        }
+
+        // Récupérer les informations complètes de l'utilisateur depuis la base de données
+        // Vous pouvez choisir de ne renvoyer que certaines informations pour des raisons de sécurité.
+        const user = await User.findById(req.user.id_user);
+
+        if (!user) {
+            return res.status(404).json({ message: 'Utilisateur non trouvé.' });
+        }
+
+        // Ne renvoyez pas le mot de passe !
+        const { password, ...userData } = user; // Déstructure pour exclure le mot de passe
+
+        res.status(200).json({
+            user: userData // Renvoyer les infos utilisateur (id, username, email, etc.)
+        });
+
+    } catch (error) {
+        console.error("Erreur lors de la récupération des informations de l'utilisateur :", error);
+        res.status(500).json({ message: 'Erreur interne du serveur lors de la récupération des informations utilisateur.' });
     }
 };

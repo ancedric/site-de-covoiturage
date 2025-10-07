@@ -1,12 +1,13 @@
-// backend/controllers/reservation.controller.js
 const Reservation = require('../models/reservation.model');
-const Trip = require('../models/trip.model'); // Nous aurons besoin du modèle Trip pour vérifier les places
+const Trip = require('../models/trip.model'); 
+const User = require('../models/user.model');
+const notificationUtil = require('../utils/notification.utils');
 
 // Créer une nouvelle réservation
 exports.createReservation = async (req, res) => {
     try {
         const { trajet_id_trajet, nb_places_reservees, statut } = req.body;
-        const utilisateur_id_user = req.user.id_user; // Récupéré de l'authentification JWT
+        const utilisateur_id_user = req.user.id_user; 
 
         // 1. Validation des champs obligatoires
         if (!trajet_id_trajet || !nb_places_reservees || !utilisateur_id_user) {
@@ -35,7 +36,7 @@ exports.createReservation = async (req, res) => {
             utilisateur_id_user: utilisateur_id_user,
             trajet_id_trajet: trajet_id_trajet,
             nb_places_reservees: nb_places_reservees,
-            statut: statut || 'pending', // Statut par défaut
+            statut: statut || 'pending',
             // Le champ trajet_utilisateur_id est l'ID du conducteur du trajet
             trajet_utilisateur_id: trip.utilisateur_id_user // L'ID du créateur du trajet
         };
@@ -51,8 +52,32 @@ exports.createReservation = async (req, res) => {
         const updatedPlaces = trip.places_disponibles - nb_places_reservees;
         await Trip.update(trajet_id_trajet, { places_disponibles: updatedPlaces });
 
-        // 6. Récupérer la réservation complète avec les détails pour la réponse
+        // 6. Récupérer la réservation complète avec les détails pour la réponse ET les notifications
         const reservationWithDetails = await Reservation.findById(createdReservation.id_reservation);
+
+        // ---ENVOI DES NOTIFICATIONS ---
+        // Récupérer les détails de l'utilisateur passager et conducteur pour leurs emails
+        const passenger = await User.findById(utilisateur_id_user);
+        const driver = await User.findById(trip.utilisateur_id_user);
+
+        if (passenger && passenger.email) {
+            await notificationUtil.sendNewReservationNotification(
+                passenger.email,
+                passenger.prenom || passenger.nom,
+                reservationWithDetails.trip_details,
+                reservationWithDetails
+            );
+        }
+        if (driver && driver.email) {
+            await notificationUtil.sendDriverNewReservationNotification(
+                driver.email,
+                driver.prenom || driver.nom,
+                passenger ? (passenger.prenom || passenger.nom) : 'Un passager',
+                reservationWithDetails.trip_details,
+                reservationWithDetails
+            );
+        }
+        // --- FIN ENVOI DES NOTIFICATIONS ---
 
         res.status(201).json({
             message: 'Réservation créée avec succès et places mises à jour.',
@@ -90,7 +115,7 @@ exports.getReservationById = async (req, res) => {
 // Récupérer toutes les réservations d'un utilisateur (l'utilisateur authentifié)
 exports.getUserReservations = async (req, res) => {
     try {
-        const userId = req.user.id_user; // Récupérer l'ID de l'utilisateur authentifié
+        const userId = req.user.id_user;
 
         const reservations = await Reservation.findByUserId(userId);
         res.status(200).json(reservations);
@@ -103,8 +128,8 @@ exports.getUserReservations = async (req, res) => {
 // Récupérer toutes les réservations pour un trajet donné (pour le conducteur)
 exports.getTripReservations = async (req, res) => {
     try {
-        const { tripId } = req.params; // ID du trajet
-        const userId = req.user.id_user; // ID de l'utilisateur authentifié
+        const { tripId } = req.params;
+        const userId = req.user.id_user;
 
         // Vérifier que l'utilisateur authentifié est bien le conducteur de ce trajet
         const trip = await Trip.findById(tripId);
@@ -137,10 +162,14 @@ exports.updateReservation = async (req, res) => {
             return res.status(404).json({ message: 'Réservation non trouvée.' });
         }
 
-        // Vérification d'autorisation : seul l'utilisateur ayant fait la réservation,
-        // le conducteur du trajet, ou un admin peut modifier la réservation.
+        // Vérification d'autorisation 
         const trip = await Trip.findById(existingReservation.trajet_id_trajet);
-        const isTripOwner = trip && parseInt(trip.utilisateur_id_user) === parseInt(userId);
+        if (!trip) { 
+            console.warn(`Trajet associé à la réservation ${id} non trouvé lors de la mise à jour.`);
+            return res.status(404).json({ message: 'Trajet associé à la réservation non trouvé.' });
+        }
+
+        const isTripOwner = parseInt(trip.utilisateur_id_user) === parseInt(userId);
         const isReservationOwner = parseInt(existingReservation.utilisateur_id_user) === parseInt(userId);
 
         if (req.user.role !== 'admin' && !isReservationOwner && !isTripOwner) {
@@ -163,7 +192,7 @@ exports.updateReservation = async (req, res) => {
             return res.status(200).json({ message: 'Aucune modification détectée pour la réservation.' });
         }
 
-        // Logique complexe pour la mise à jour des places et des statuts
+        // Logique pour la mise à jour des places et des statuts
         let placesToUpdateInTrip = 0;
         if (updateData.nb_places_reservees !== undefined) {
             // Si le statut est "cancelled", les places sont libérées, quelle que soit la nouvelle valeur de places_reservees
@@ -183,7 +212,7 @@ exports.updateReservation = async (req, res) => {
             if (trip.places_disponibles < oldPlaces) {
                 return res.status(400).json({ message: 'Pas assez de places disponibles pour réactiver cette réservation.' });
             }
-            placesToUpdateInTrip = -oldPlaces; // Décrémenter les places disponibles
+            placesToUpdateInTrip = -oldPlaces;
         }
 
         // Mettre à jour la réservation
@@ -197,6 +226,33 @@ exports.updateReservation = async (req, res) => {
         if (placesToUpdateInTrip !== 0) {
             await Trip.update(trip.id_trajet, { places_disponibles: trip.places_disponibles + placesToUpdateInTrip });
         }
+
+        // --- DÉBUT ENVOI DES NOTIFICATIONS POUR ANNULATION/MODIFICATION DE STATUT ---
+        // Récupérer la réservation complète avec les détails pour la notification après update
+        const reservationDetailsForNotification = await Reservation.findById(updatedReservation.id_reservation);
+        const passenger = await User.findById(existingReservation.utilisateur_id_user);
+        const driver = await User.findById(trip.utilisateur_id_user);
+
+        // Si le statut est passé à 'cancelled' et n'était pas déjà 'cancelled'
+        if (updateData.statut === 'cancelled' && oldStatut !== 'cancelled') {
+            if (passenger && passenger.email) {
+                await notificationUtil.sendReservationCancellationNotification(
+                    passenger.email,
+                    passenger.prenom || passenger.nom,
+                    'Votre réservation a été annulée par vous ou le conducteur.',
+                    reservationDetailsForNotification.trip_details,
+                    reservationDetailsForNotification
+                );
+            }
+            if (driver && driver.email) {
+                 await notificationUtil.sendEmail(
+                    driver.email,
+                    'Une réservation pour votre trajet a été annulée',
+                    `<p>Bonjour ${driver.prenom || driver.nom},</p><p>Une réservation (${reservationDetailsForNotification.nb_places_reservees} place(s)) de ${passenger ? (passenger.prenom || passenger.nom) : 'un passager'} pour votre trajet de ${reservationDetailsForNotification.trip_details.lieu_depart_details ? reservationDetailsForNotification.trip_details.lieu_depart_details.nom_lieu : 'N/A'} à ${reservationDetailsForNotification.trip_details.lieu_arrivee_details ? reservationDetailsForNotification.trip_details.lieu_arrivee_details.nom_lieu : 'N/A'} a été annulée.</p>`
+                );
+            }
+        }
+        // --- FIN ENVOI DES NOTIFICATIONS ---
 
         res.status(200).json({ message: 'Réservation mise à jour avec succès.', reservation: updatedReservation });
 
@@ -221,6 +277,10 @@ exports.deleteReservation = async (req, res) => {
         // Vérification d'autorisation : seul l'utilisateur ayant fait la réservation,
         // le conducteur du trajet, ou un admin peut supprimer la réservation.
         const trip = await Trip.findById(existingReservation.trajet_id_trajet);
+        if (!trip) {
+            console.warn(`Trajet associé à la réservation ${id} non trouvé lors de la suppression.`);
+        }
+
         const isTripOwner = trip && parseInt(trip.utilisateur_id_user) === parseInt(userId);
         const isReservationOwner = parseInt(existingReservation.utilisateur_id_user) === parseInt(userId);
 
@@ -234,11 +294,47 @@ exports.deleteReservation = async (req, res) => {
             return res.status(500).json({ message: 'Échec de la suppression de la réservation.' });
         }
 
-        // Si la réservation est supprimée et n'était pas déjà "cancelled", libérer les places
-        if (deletedReservation.statut !== 'cancelled') {
+        // Si la réservation est supprimée et n'était pas déjà "cancelled", libérer les places si le trajet existe
+        if (deletedReservation.statut !== 'cancelled' && trip) {
             const updatedPlaces = trip.places_disponibles + deletedReservation.nb_places_reservees;
             await Trip.update(trip.id_trajet, { places_disponibles: updatedPlaces });
         }
+
+        // --- DÉBUT ENVOI DES NOTIFICATIONS APRÈS SUPPRESSION ---
+        const passenger = await User.findById(existingReservation.utilisateur_id_user);
+        const driver = (trip && trip.utilisateur_id_user) ? await User.findById(trip.utilisateur_id_user) : null;
+
+        // Pour les détails du trajet dans la notification, on utilise l'objet 'trip' déjà récupéré
+        const tripDetailsForNotification = trip ? {
+            id_trajet: trip.id_trajet,
+            date_depart: trip.date_depart,
+            heure_depart: trip.heure_depart,
+            places_disponibles: trip.places_disponibles,
+            prix_par_place: trip.prix_par_place,
+            utilisateur_id_user: trip.utilisateur_id_user,
+            id_lieu_depart: trip.id_lieu_depart,
+            id_lieu_arrivee: trip.id_lieu_arrivee,
+            lieu_depart_details: trip.lieu_depart_details,
+            lieu_arrivee_details: trip.lieu_arrivee_details
+        } : null;
+
+        if (passenger && passenger.email) {
+            await notificationUtil.sendReservationCancellationNotification(
+                passenger.email,
+                passenger.prenom || passenger.nom,
+                'Votre réservation a été supprimée par vous ou le conducteur.',
+                tripDetailsForNotification,
+                deletedReservation
+            );
+        }
+        if (driver && driver.email) {
+            await notificationUtil.sendEmail(
+                driver.email,
+                'Une réservation pour votre trajet a été supprimée',
+                `<p>Bonjour ${driver.prenom || driver.nom},</p><p>Une réservation (${deletedReservation.nb_places_reservees} place(s)) de ${passenger ? (passenger.prenom || passenger.nom) : 'un passager'} pour votre trajet a été supprimée.</p>`
+            );
+        }
+        // --- FIN ENVOI DES NOTIFICATIONS ---
 
         res.status(200).json({ message: 'Réservation supprimée avec succès.', reservation: deletedReservation });
 

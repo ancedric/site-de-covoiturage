@@ -15,6 +15,14 @@ router.patch('/profile', authMiddleware, userController.updateProfile);
 // DELETE /api/profile
 router.delete('/profile', authMiddleware, userController.deleteProfile);
 
+// Route pour récupérer l'utilisateur connecté
+router.get('/me', authMiddleware, userController.getMe);
+
+// Récupérer un utilisateur spécifique par son ID
+// GET /api/users/:id_user
+router.get('/users/:id_user', authMiddleware, userController.getUserById);
+
+
 // =======================================================
 // Routes de gestion des utilisateurs pour les ADMINISTRATEURS
 // Toutes ces routes nécessitent une authentification ET le rôle 'admin'
@@ -24,10 +32,6 @@ router.delete('/profile', authMiddleware, userController.deleteProfile);
 // GET /api/users
 router.get('/users', authMiddleware, isAdmin, userController.getAllUsers);
 
-// Récupérer un utilisateur spécifique par son ID
-// GET /api/users/:id_user
-router.get('/users/:id_user', authMiddleware, isAdmin, userController.getUserById);
-
 // Mettre à jour un utilisateur spécifique par son ID
 // PATCH /api/users/:id_user
 router.patch('/users/:id_user', authMiddleware, isAdmin, userController.updateUserById);
@@ -35,5 +39,11 @@ router.patch('/users/:id_user', authMiddleware, isAdmin, userController.updateUs
 // Supprimer un utilisateur spécifique par son ID
 // DELETE /api/users/:id_user
 router.delete('/users/:id_user', authMiddleware, isAdmin, userController.deleteUserById);
+
+
+// Exemple de route protégée pour un profil utilisateur (déjà présente ou à ajouter)
+// router.get('/:id', authMiddleware.authenticateToken, userController.getUserById);
+// router.put('/:id', authMiddleware.authenticateToken, userController.updateUser);
+// router.delete('/:id', authMiddleware.authenticateToken, userController.deleteUser);
 
 module.exports = router;

@@ -10,4 +10,8 @@ router.post('/register', userController.register);
 // POST /api/login
 router.post('/login', userController.login);
 
+// Route pour la déconnexion d'un utilisateur
+// POST /api/logout
+router.post('/logout', userController.logout);
+
 module.exports = router;

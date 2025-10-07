@@ -1,16 +1,11 @@
 const jwt = require('jsonwebtoken');
 
 const authMiddleware = (req, res, next) => {
-    // Tenter de récupérer le token de l'en-tête Authorization
-    const authHeader = req.headers.authorization;
-
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-        return res.status(401).json({ message: 'Accès non autorisé : Aucun token fourni ou format incorrect.' });
-    }
-
-    const token = authHeader.split(' ')[1]; // Extraire le token après 'Bearer '
+    // Tenter de récupérer le token directement des cookies parsés par cookie-parser
+    const token = req.cookies.token;
 
     if (!token) {
+        console.log('Authentification échouée: Token manquant dans les cookies.');
         return res.status(401).json({ message: 'Accès non autorisé : Token manquant.' });
     }
 
@@ -20,9 +15,9 @@ const authMiddleware = (req, res, next) => {
 
         // Attacher les informations de l'utilisateur décodées à l'objet de requête
         req.user = decoded;
-        next(); // Passer au middleware ou au contrôleur suivant
+        next();
     } catch (error) {
-        console.error('Erreur de vérification du token :', error);
+        console.error('Erreur de vérification du token (authMiddleware) :', error);
         if (error.name === 'TokenExpiredError') {
             return res.status(401).json({ message: 'Token expiré. Veuillez vous reconnecter.' });
         }
@@ -32,17 +27,10 @@ const authMiddleware = (req, res, next) => {
 
 // Middleware d'autorisation pour l'administrateur
 const isAdmin = (req, res, next) => {
-    // Vérifier si req.user est défini
-    if (!req.user) {
-        return res.status(401).json({ message: 'Non authentifié. Le token est manquant ou invalide.' });
+    if (!req.user || req.user.role !== 'admin') { 
+        return res.status(403).json({ message: 'Accès refusé. Nécessite des privilèges administrateur.' });
     }
-
-    // Vérifier le rôle de l'utilisateur. Le rôle "admin" est supposé être le rôle d'administrateur.
-    if (req.user.role === 'admin') {
-        next(); // L'utilisateur est admin, passer au gestionnaire de route
-    } else {
-        res.status(403).json({ message: 'Accès refusé. Nécessite des privilèges administrateur.' });
-    }
+    next();
 };
 
 // On exporte les deux middlewares
