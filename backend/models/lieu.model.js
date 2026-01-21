@@ -18,17 +18,15 @@ class Lieu {
     static async create(newLieu) {
         try {
             const result = await pool.query(
-                `INSERT INTO "lieu" (nom_lieu, adresse, ville, pays, latitude, longitude, description)
-                 VALUES ($1, $2, $3, $4, $5, $6, $7)
+                `INSERT INTO "lieu" (nom_lieu, adresse, pays, latitude, longitude)
+                 VALUES ($1, $2, $3, $4, $5)
                  RETURNING *`,
                 [
                     newLieu.nom_lieu,
                     newLieu.adresse,
-                    newLieu.ville,
                     newLieu.pays,
                     newLieu.latitude,
-                    newLieu.longitude,
-                    newLieu.description || null
+                    newLieu.longitude
                 ]
             );
             return new Lieu(result.rows[0]);

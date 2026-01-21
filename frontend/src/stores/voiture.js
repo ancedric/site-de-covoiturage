@@ -1,6 +1,9 @@
 import { defineStore } from 'pinia';
 import apiClient from '../services/api';
+import {useAuthStore} from '../stores/auth';
 
+
+    const userStore = useAuthStore()
 export const useVoitureStore = defineStore('voiture', {
   state: () => ({
     voitures: [],
@@ -8,15 +11,42 @@ export const useVoitureStore = defineStore('voiture', {
     error: null,
   }),
   actions: {
-    async fetchMyVoitures() {
+    async fetchMyVoitures(userId) {
       this.loading = true;
       this.error = null;
       try {
-        const response = await apiClient.get('/voitures/my-voitures');
-        this.voitures = response.data;
+        const response = await apiClient.get(`/voitures/my-voitures/${userId}`);
+        this.voitures = response.data[0];
+        return response.data[0]
       } catch (err) {
         this.error = err.response?.data?.message || 'Erreur lors de la récupération de vos véhicules.';
         console.error('Erreur fetchMyVoitures:', err.response?.data || err.message);
+      } finally {
+        this.loading = false;
+      }
+    },
+    async fetchVoiture(carId) {
+      this.loading = true;
+      this.error = null;
+      try {
+        const response = await apiClient.get(`/voitures/voiture/${carId}`);
+        return response.data[0]
+      } catch (err) {
+        this.error = err.response?.data?.message || 'Erreur lors de la récupération de vos véhicules.';
+        console.error('Erreur fetchMyVoitures:', err.response?.data || err.message);
+      } finally {
+        this.loading = false;
+      }
+    },
+    async fetchAllVoitures() {
+      this.loading = true;
+      this.error = null;
+      try {
+        const response = await apiClient.get(`/voitures/`);
+        this.voitures = response.data;
+      } catch (err) {
+        this.error = err.response?.data?.message || 'Erreur lors de la récupération de vos véhicules.';
+        console.error('Erreur fetchAllVoitures:', err.response?.data || err.message);
       } finally {
         this.loading = false;
       }

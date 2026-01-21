@@ -126,6 +126,22 @@ exports.createVoiture = async (req, res) => {
     });
 };
 
+exports.getAllVoitures = async (req, res) => {
+    console.log("DEBUG: Récupération de toutes les voitres")
+    try {
+        const voiture = await Voiture.findAll(); 
+
+        if (!voiture) { 
+            return res.status(200).json({ message: 'Aucune voiture trouvée.' });
+        }
+
+        res.status(200).json(voiture);
+    } catch (error) {
+        console.error('Erreur lors de la récupération de la voiture par ID :', error);
+        res.status(500).json({ message: 'Erreur interne du serveur.' });
+    }
+};
+
 // Récupérer une voiture par son ID
 exports.getVoitureById = async (req, res) => {
     try {
@@ -150,12 +166,33 @@ exports.getVoitureById = async (req, res) => {
 // Récupérer toutes les voitures de l'utilisateur authentifié
 exports.getMyVoitures = async (req, res) => { 
     try {
-        const userId = req.user.id_user; 
+        const userId = req.params.id_user; 
+        console.log('Id utilisateur: ', userId)
         const voitures = await Voiture.findByUserId(userId);
 
         if (!voitures || voitures.length === 0) { 
-            return res.status(404).json({ message: 'Voitures non trouvées.' });
+            return res.status(201).json({ message: 'Voitures non trouvées.', voiture: [] });
         }
+        console.log("Voitures: ", voitures);
+        res.status(200).json(voitures); 
+    } catch (error) {
+        console.error('Erreur lors de la récupération des voitures de l\'utilisateur :', error);
+        res.status(500).json({ message: 'Erreur interne du serveur.' });
+    }
+};
+
+// Récupérer une voiture par son id
+exports.getVoiture = async (req, res) => { 
+    console.log('Appel de la fonction getVoiture')
+    try {
+        const carId = req.params.id_voiture; 
+        console.log('id voiture: ', carId)
+        const voitures = await Voiture.findByCarId(carId);
+
+        if (!voitures || voitures.length === 0) { 
+            return res.status(404).json({ message: 'Voiture non trouvée.' });
+        }
+        console.log("Voitures: ", voitures);
         res.status(200).json(voitures); 
     } catch (error) {
         console.error('Erreur lors de la récupération des voitures de l\'utilisateur :', error);

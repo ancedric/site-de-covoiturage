@@ -94,7 +94,7 @@ const routes = [
       title: 'Mes Avis'
     }
   },
-  {
+  /*{
     path: '/create-reservation/:tripId', 
     name: 'CreateReservation',
     component: () => import('../views/reservations/CreateReservationView.vue'),
@@ -103,7 +103,7 @@ const routes = [
       requiresAuth: true,
       title: 'Réserver un trajet'
     }
-  },
+  },*/
 
   // ===========================================
   // 3. ROUTES SPÉCIFIQUES AU CONDUCTEUR (NÉCESSITENT AUTHENTIFICATION ET RÔLE/CONTEXTE CONDUCTEUR)
@@ -138,7 +138,7 @@ const routes = [
       // meta: { requiresDriver: true }
     }
   },
-  {
+  /*{
     path: '/manage-trip-reservations/:tripId', 
     name: 'ManageTripReservations',
     component: () => import('../views/reservations/ManageTripReservationsView.vue'),
@@ -148,7 +148,7 @@ const routes = [
       title: 'Gérer les Réservations',
       // meta: { requiresDriver: true }
     }
-  },
+  },*/
   {
     path: '/post-review/:tripId/:userId',
     name: 'PostReview',

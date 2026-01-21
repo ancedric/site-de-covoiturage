@@ -50,7 +50,6 @@ class User {
     // Méthode pour trouver un utilisateur par son email
     static async findByEmail(email) {
         try {
-            // MISE À JOUR DE LA REQUÊTE SELECT
             const result = await pool.query(
                 `SELECT id_user, nom, prenom, email, mot_de_passe, telephone, role, date_inscription, evaluation_moyenne, photo_profil
                  FROM "utilisateur"
@@ -67,7 +66,6 @@ class User {
     // Méthode pour trouver un utilisateur par son ID
     static async findById(id) {
         try {
-            // MISE À JOUR DE LA REQUÊTE SELECT
             const result = await pool.query(
                 `SELECT id_user, nom, prenom, email, telephone, role, date_inscription, evaluation_moyenne, photo_profil
                  FROM "utilisateur"

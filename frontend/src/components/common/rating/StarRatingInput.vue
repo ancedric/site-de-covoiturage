@@ -11,7 +11,7 @@
       <img
         v-for="star in 5"
         :key="star"
-        :src="star <= (hoveredRating || selectedRating) ? '../../../assets/icons/filled_star.png' : '../../../assets/icons/empty_star.png'"
+        :src="star <= (hoveredRating || selectedRating) ? filledStar : emptyStar"
         alt="Étoile d'évaluation"
         class="star-icon"
         @mouseover="hoveredRating = star"
@@ -49,6 +49,8 @@
 <script setup>
 import { ref, watch } from 'vue';
 import { defineProps, defineEmits } from 'vue';
+import filledStar from '../../../assets/icons/filled_star.png'
+import emptyStar from '../../../assets/icons/empty_star.png'
 
 // Définition des props : la note actuelle et le nombre d'évaluations
 const props = defineProps({

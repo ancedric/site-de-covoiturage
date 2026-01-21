@@ -3,12 +3,20 @@
   <h2>Inscription</h2>
   <form @submit.prevent="handleRegister" class="auth-form">
     <div class="form-group">
-      <label for="username">Nom d'utilisateur</label>
-      <input type="text" id="username" v-model="username" required />
+      <label for="firstname">Prénom</label>
+      <input type="text" id="username" v-model="firstname" required />
+    </div>
+    <div class="form-group">
+      <label for="lastname">Nom</label>
+      <input type="text" id="username" v-model="lastname" required />
     </div>
     <div class="form-group">
       <label for="email">Email</label>
       <input type="email" id="email" v-model="email" required />
+    </div>
+    <div class="form-group">
+      <label for="phone">Téléphone</label>
+      <input type="phone" id="phone" v-model="phone" required />
     </div>
     <div class="form-group">
       <label for="password">Mot de passe</label>
@@ -30,11 +38,14 @@ import { useAuthStore } from '../../stores/auth';
 
 const authStore = useAuthStore();
 
-const username = ref('');
+const firstname = ref('');
+const lastname = ref('');
 const email = ref('');
+const phone = ref('');
 const password = ref('');
 const confirmPassword = ref('');
 const successMessage = ref('');
+const role = ref('')
 
 const handleRegister = async () => {
   successMessage.value = '';
@@ -43,22 +54,22 @@ const handleRegister = async () => {
     authStore.error = 'Les mots de passe ne correspondent pas.';
     return;
   }
-  
-  //On s'assure que l'email et le mot de passe sont non vides et valides
-  if (!username.value || !email.value || !password.value) {
+
+  if (!firstname.value || !lastname.value || !email.value || !password.value) {
       authStore.error = 'Veuillez remplir tous les champs.';
       return;
   }
   
   try {
     await authStore.register({
-      username: username.value,
+      prenom: firstname.value,
+      nom: lastname.value,
       email: email.value,
-      password: password.value,
+      telephone: phone.value,
+      mot_de_passe: password.value,
+      role: role.value
     });
-    // Si l'inscription réussit, le store redirige vers /login
   } catch (err) {
-    // L'erreur est déjà gérée par le store et stockée dans authStore.error
     console.error('Erreur dans le composant:', err);
   }
 };
@@ -67,7 +78,7 @@ const handleRegister = async () => {
 <style scoped>
 /* Styles de base pour les formulaires d'authentification */
 .auth-container {
-  max-width: 400px;
+  width: 280px;
   margin: 50px auto;
   padding: 30px;
   background-color: #fff;
@@ -102,13 +113,16 @@ label {
 
 input[type="text"],
 input[type="email"],
-input[type="password"] {
+input[type="password"],
+input[type="phone"] {
   width: 100%;
   padding: 12px;
   border: 1px solid #ddd;
   border-radius: 6px;
-  font-size: 1em;
-  box-sizing: border-box; /* Inclut le padding dans la largeur */
+  font-size: 1rem;
+  background-color: transparent;
+  color: #40518b;
+  box-sizing: border-box; 
 }
 
 input:focus {

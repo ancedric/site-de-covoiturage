@@ -5,7 +5,7 @@ const jwt = require('jsonwebtoken');
 // Fonction d'inscription d'un nouvel utilisateur
 exports.register = async (req, res) => {
     try {
-        const { nom, prenom, email, mot_de_passe, telephone, role, photo_profil } = req.body;
+        const { prenom, nom, email, mot_de_passe, telephone, role, photo_profil } = req.body;
 
         if (!email || !mot_de_passe || !nom) {
             return res.status(400).json({ message: 'Email, mot de passe et nom sont requis.' });
@@ -17,8 +17,8 @@ exports.register = async (req, res) => {
         }
 
         const newUser = {
-            nom,
             prenom,
+            nom,
             email,
             mot_de_passe,
             telephone,
@@ -62,7 +62,7 @@ exports.login = async (req, res) => {
         const token = jwt.sign(
             { id_user: user.id_user, email: user.email, role: user.role },
             process.env.JWT_SECRET,
-            { expiresIn: '1h' }
+            { expiresIn: '1d' }
         );
 
         // Envoyer le token dans un cookie HTTP-only pour la persistance

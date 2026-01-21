@@ -4,7 +4,7 @@
         <img 
             v-for="star in 5"
             :key="star"
-            :src="star <= rating ? 'filled_star.png' : 'empty_star.png'"
+            :src="star <= rating ? filledStar : emptyStar"
             alt="Étoile d'évaluation"
         />
     </div>
@@ -12,6 +12,8 @@
 </template>
 
 <script setup>
+  import filledStar from '../../../assets/icons/filled_star.png' 
+  import emptyStar from '../../../assets/icons/empty_star.png'
 const props = defineProps({
   rating: {
     type: Number,

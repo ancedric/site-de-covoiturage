@@ -26,7 +26,7 @@
             <div class="collapsed">
               <router-link to="/my-published-trips">Mes Trajets</router-link>
               <router-link to="/my-reservations">Mes Réservations</router-link>
-              <router-link to="/trips">Tous les Trajets</router-link>
+              <router-link to="/search-trips">Tous les Trajets</router-link>
               <router-link to="/profile">Mon Compte</router-link>
                       
               <button @click="authStore.logout()" :disabled="authStore.loading">Déconnexion</button>

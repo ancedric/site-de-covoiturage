@@ -37,6 +37,19 @@ class Voiture {
         }
     }
 
+    static async findAll() {
+        try {
+            const result = await pool.query(`SELECT * FROM "voiture"`);
+            if (result.rows.length > 0) {
+                return new Voiture(result.rows);
+            }
+            return null;
+        } catch (error) {
+            console.error("Erreur lors de la récupération de la voiture par ID (MODEL) :", error);
+            throw error;
+        }
+    }
+
     static async findById(id) {
         try {
             const result = await pool.query(`SELECT * FROM "voiture" WHERE id_voiture = $1`, [parseInt(id)]);
@@ -57,6 +70,21 @@ class Voiture {
         else{
             try {
                 const result = await pool.query(`SELECT * FROM "voiture" WHERE utilisateur_id_user = $1`, [parseInt(userId)]);
+                return result.rows.map(row => new Voiture(row));
+            } catch (error) {
+                console.error("Erreur lors de la récupération des voitures par utilisateur (MODEL) :", error);
+                throw error;
+            }
+        }
+    }
+
+    static async findByCarId(carId) {
+        if (!carId) {
+            return [];
+        }
+        else{
+            try {
+                const result = await pool.query(`SELECT * FROM "voiture" WHERE id_voiture = $1`, [parseInt(carId)]);
                 return result.rows.map(row => new Voiture(row));
             } catch (error) {
                 console.error("Erreur lors de la récupération des voitures par utilisateur (MODEL) :", error);

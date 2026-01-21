@@ -91,24 +91,29 @@ exports.createTrip = async (req, res) => {
 exports.addParticipant = async (req, res) => {
     try {
         const { id_trajet } = req.params;
-        const utilisateur_id_user = req.user.id_user;
+        const {userId} = req.body;
+        console.log('Appel de addParticipant', id_trajet, userId)
         const trip = await Trip.findById(id_trajet);
         if (!trip) {
             return res.status(404).json({ message: 'Trajet non trouvé.' });
         }
-        if (trip.utilisateur_id_user === utilisateur_id_user) {
+        if (trip.utilisateur_id_user === userId) {
             return res.status(400).json({ message: 'Le conducteur ne peut pas rejoindre son propre trajet.' });
         }
         if (trip.places_disponibles <= 0) {
             return res.status(400).json({ message: 'Aucune place disponible pour rejoindre ce trajet.' });
         }
+
+        return res.status(200).json({message: 'inscription possible!', statut: true})
         // Vérifier si l'utilisateur est déjà inscrit
-        const isParticipant = await Trip.isUserParticipant(id_trajet, utilisateur_id_user);
+        const isParticipant = await Trip.isUserParticipant(id_trajet, userId);
         if (isParticipant) {
             return res.status(400).json({ message: 'Vous êtes déjà inscrit à ce trajet.' });
         }
+        console.log("praticipating: ", isParticipant)
         // Ajouter l'utilisateur comme participant
-        const updatedTrip = await Trip.addParticipant(id_trajet, utilisateur_id_user);
+        const updatedTrip = await Trip.addParticipant(id_trajet, userId);
+        console.log('update: ', updatedTrip)
         if (!updatedTrip) {
             return res.status(404).json({ message: 'Trajet non trouvé ou aucune place disponible.' });
         }
@@ -130,7 +135,7 @@ exports.getTripParticipants = async (req, res) => {
         const participants = await Trip.getParticipants(id_trajet);
         console.log("DEBUG: Données: ", participants, " pour le trajet: ", id_trajet)
         if (!participants || participants.length === 0) {
-            return res.status(404).json({ message: 'Aucun participant trouvé pour ce trajet.' });
+            return res.status(200).json({ participants: [] });
         }
         res.status(200).json({ participants });
     } catch (error) {
@@ -146,6 +151,7 @@ exports.getAllTrips = async (req, res) => {
         console.log("DEBUG: Filtres reçus pour getAllTrips :", filters);
 
         const trips = await Trip.findFiltered(filters);
+        console.log('trips:', trips)
         res.status(200).json(trips);
     } catch (error) {
         console.error('Erreur lors de la récupération des trajets :', error);
@@ -179,6 +185,7 @@ exports.getTripByUserId = async (req, res) => {
         if (!trips || trips.length === 0) {
             return res.status(404).json({ message: 'Aucun trajet trouvé pour cet utilisateur.' });
         }
+        console.log("trips: ", trips)
         res.status(200).json({ trips });
     } catch (error) {
         console.error('Erreur lors de la récupération des trajets par utilisateur :', error);

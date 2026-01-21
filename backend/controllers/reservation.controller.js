@@ -6,37 +6,38 @@ const notificationUtil = require('../utils/notification.utils');
 // Créer une nouvelle réservation
 exports.createReservation = async (req, res) => {
     try {
-        const { trajet_id_trajet, nb_places_reservees, statut } = req.body;
-        const utilisateur_id_user = req.user.id_user; 
-
-        // 1. Validation des champs obligatoires
-        if (!trajet_id_trajet || !nb_places_reservees || !utilisateur_id_user) {
-            return res.status(400).json({ message: 'Tous les champs obligatoires (trajet_id_trajet, nb_places_reservees) doivent être fournis.' });
-        }
-
+        const { tripId } = req.body;
+        const {id} = req.params; 
+        console.log('entrée dans create de reservationController: ', tripId, id)
         // 2. Récupérer les détails du trajet pour vérifier la disponibilité et l'ID du conducteur
-        const trip = await Trip.findById(trajet_id_trajet);
+        const trip = await Trip.findById(tripId);
 
         if (!trip) {
             return res.status(404).json({ message: 'Trajet non trouvé.' });
         }
 
         // Vérifier que l'utilisateur ne réserve pas son propre trajet (s'il est le conducteur)
-        if (trip.utilisateur_id_user && parseInt(trip.utilisateur_id_user) === parseInt(utilisateur_id_user)) {
+        if (trip.utilisateur_id_user && parseInt(trip.utilisateur_id_user) === parseInt(id)) {
              return res.status(403).json({ message: 'Vous ne pouvez pas réserver votre propre trajet.' });
         }
 
         // 3. Vérifier les places disponibles
-        if (nb_places_reservees > trip.places_disponibles) {
+        if (trip.places_disponibles <=0) {
             return res.status(400).json({ message: `Pas assez de places disponibles sur ce trajet. Il reste ${trip.places_disponibles} place(s).` });
+        }
+
+        //4. On  vérifie que l'utilisateur n'a pas déjà réservé sur ce trajet
+        const isParticipant = await Reservation.findByUserId(id)
+        if(isParticipant){
+            return res.status(400).json({ message: `Vous êtes déjà inscrit sur ce trajet.` });
         }
 
         // Préparer les données pour la nouvelle réservation
         const newReservationData = {
-            utilisateur_id_user: utilisateur_id_user,
-            trajet_id_trajet: trajet_id_trajet,
-            nb_places_reservees: nb_places_reservees,
-            statut: statut || 'pending',
+            utilisateur_id_user: id,
+            trajet_id_trajet: tripId,
+            nb_places_reservees: 1,
+            statut: 'pending',
             // Le champ trajet_utilisateur_id est l'ID du conducteur du trajet
             trajet_utilisateur_id: trip.utilisateur_id_user // L'ID du créateur du trajet
         };
@@ -49,15 +50,15 @@ exports.createReservation = async (req, res) => {
         }
 
         // 5. Mettre à jour les places disponibles du trajet
-        const updatedPlaces = trip.places_disponibles - nb_places_reservees;
-        await Trip.update(trajet_id_trajet, { places_disponibles: updatedPlaces });
+        const updatedPlaces = trip.places_disponibles - 1;
+        await Trip.update(tripId, { places_disponibles: updatedPlaces });
 
         // 6. Récupérer la réservation complète avec les détails pour la réponse ET les notifications
         const reservationWithDetails = await Reservation.findById(createdReservation.id_reservation);
 
         // ---ENVOI DES NOTIFICATIONS ---
         // Récupérer les détails de l'utilisateur passager et conducteur pour leurs emails
-        const passenger = await User.findById(utilisateur_id_user);
+        const passenger = await User.findById(id);
         const driver = await User.findById(trip.utilisateur_id_user);
 
         if (passenger && passenger.email) {
@@ -115,9 +116,11 @@ exports.getReservationById = async (req, res) => {
 // Récupérer toutes les réservations d'un utilisateur (l'utilisateur authentifié)
 exports.getUserReservations = async (req, res) => {
     try {
-        const userId = req.user.id_user;
+        const userId = req.params.id;
+        console.log("Entrée dans getUserReservations: ", userId)
 
         const reservations = await Reservation.findByUserId(userId);
+        console.log("reservations: ", reservations)
         res.status(200).json(reservations);
     } catch (error) {
         console.error('Erreur lors de la récupération des réservations de l\'utilisateur :', error);
@@ -268,6 +271,7 @@ exports.deleteReservation = async (req, res) => {
         const { id } = req.params;
         const userId = req.user.id_user;
 
+        console.log('Appel de delete reservation: ', id, userId)
         const existingReservation = await Reservation.findById(id);
 
         if (!existingReservation) {

@@ -2,6 +2,7 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const cookieParser = require('cookie-parser');
+const db = require('./db/db.config');
 
 const app = express();
 
@@ -9,7 +10,7 @@ const app = express();
 app.use(express.json());
 
 const corsOptions = {
-    origin: process.env.FRONTEND_URL || 'http://localhost:5173',
+    origin: [process.env.FRONTEND_URL, 'http://localhost:5174' ] || 'http://localhost:5173',
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
     credentials: true,
     optionsSuccessStatus: 204 
@@ -26,9 +27,6 @@ app.use((req, res, next) => {
 
 // --- FIN DES MIDDLEWARES GLOBALES ---
 
-
-// Import de la configuration de la base de données
-const db = require('./db/db.config');
 
 // Import des routeurs
 const authRoutes = require('./routes/auth.route');

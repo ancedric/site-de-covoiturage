@@ -7,33 +7,15 @@
       <div class="infos">
         <div class="info-top">
           <div class="user-name">{{ driver.prenom }} {{ driver.nom }}</div>
-          <div class="stars">
-            <StarRating :rating="parseInt(driver.evaluation_moyenne)" />
-          </div>
-        </div>
-        <div class="info-bottom">
-          <p class="car-info">
-            {{ car.plaque_immatriculation }} | {{ car.marque }} {{ car.modele }} | {{ car.annee }}
-          </p>
         </div>
       </div>
     </div>
     <div class="bottom">
-         <div class="separator-1"></div>
-          <div class="separator-2"></div>
            <div class="separator"></div>
       <div class="trip-data">
         <h4 class="title">Départ</h4>
-          <p class="adress">{{ trip.lieu_depart_details.adresse }}</p>
-          <h4 class="date-time"> Date départ : <br>{{ trip.date_depart.split('T')[0] }}</h4>
-          <h4 class="date-time"> Heure départ : <br>{{ trip.heure_depart }}</h4>
-          <p class="stops"></p>
-      </div>
-      <div class="trip-data">
-        <h4 class="title">Arrivée</h4>
-          <p class="adress"> {{ trip.lieu_arrivee_details.adresse }}</p>
-          <h4 class="date-time">{{ trip.date_arrivee }}</h4>
-          <h4 class="date-time">{{ trip.heure_arrivee }}</h4>
+          <h4 class="date-time">{{ trip.date_depart.split('T')[0] }}</h4>
+          <h4 class="date-time">{{ trip.heure_depart }}</h4>
       </div>
       <div class="tarrif">
           <div class="price">
@@ -41,18 +23,23 @@
             <p class="currency">XAF</p>
           </div>
           <p class="places-disp">Places disponibles : {{ trip.places_disponibles }}</p>
-        <router-link :to="`/trip/${trip.id_trajet}`" class="explore-btn">Explorer</router-link>
+        <router-link :to="`/trip/${trip.id_trajet}`" class="explore-btn">Voir plus</router-link>
+        <button @click="handleDismiss" class="cancel-btn">Annuler</button>
       </div>
     </div>
   </div>
 </template>
 
 <script setup>
-import StarRating from '../common/rating/StarRating.vue';
 import defaultAvatar from '../../assets/images/Default-avatar.png'
+import apiClient from '../../services/api'
 
 // Définition des props avec les types de données appropriés
 const props = defineProps({
+  reservationId: {
+    type: Number,
+    required: true,
+  },
   trip: {
     type: Object,
     required: true,
@@ -60,12 +47,21 @@ const props = defineProps({
   driver: {
     type: Object,
     required: true,
-  },
-  car: {
-    type: Object,
-    required: true,
-  },
+  }
 });
+
+const handleDismiss = async () => {
+    try{
+        const res = await apiClient.delete(`reservations/${props.reservationId}`)
+        if(!res.data.reservation){
+            console.log("Echec de la suppression de réservation")
+        }
+        console.log("Suppression réussie!!", res.data)
+    }catch(err){
+        console.error("Une erreur est survenue lors de l'annulation de la réservation: ", err)
+    }
+    
+}
 </script>
 
 <style scoped>
@@ -132,7 +128,7 @@ const props = defineProps({
 
         .separator-1, .separator-2{
             width: 1px;
-            height: 100px;
+            height: 80px;
             background-color: #586079ff;
         }
         .separator-1{
@@ -163,7 +159,6 @@ const props = defineProps({
                 font-size: 0.6rem;
                 height: 25px;
                 padding: 0;
-                padding-bottom: 20px;
             }
             .date-time, .stops{
                 color: #5C5B5B;
@@ -191,6 +186,20 @@ const props = defineProps({
                 transition: all .3s ease-in-out;
                 &:hover{
                     background-color: #91affaff;
+                }
+            }
+            .cancel-btn{
+                width: 80%;
+                height: 30px;
+                background-color: #cf0c2cff;
+                color: #eee;
+                text-decoration: none;
+                padding-top: 5px;
+                border: none;
+                border-radius: 30px;
+                transition: all .3s ease-in-out;
+                &:hover{
+                    background-color: #f05c69ff;
                 }
             }
         }

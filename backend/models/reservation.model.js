@@ -86,6 +86,12 @@ class Reservation {
                 SELECT
                     r.*,
                     json_build_object(
+                        'id_user', u.id_user,
+                        'nom', u.nom,
+                        'prenom', u.prenom,
+                        'email', u.email
+                    ) AS user_details,
+                    json_build_object(
                         'id_trajet', t.id_trajet,
                         'date_depart', t.date_depart,
                         'heure_depart', t.heure_depart,
@@ -94,6 +100,7 @@ class Reservation {
                         'utilisateur_id_user', t.utilisateur_id_user -- Inclure l'ID du conducteur
                     ) AS trip_details
                 FROM "Reservation" AS r
+                JOIN "utilisateur" AS u ON r.trajet_utilisateur_id = u.id_user
                 JOIN "trajet" AS t ON r.trajet_id_trajet = t.id_trajet
                 WHERE r.utilisateur_id_user = $1
                 ORDER BY r.date_reservation DESC`;

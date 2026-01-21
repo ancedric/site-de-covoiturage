@@ -3,6 +3,9 @@ const router = express.Router();
 const lieuController = require('../controllers/lieu.controller');
 const { authMiddleware } = require('../utils/auth.utils');
 
+// Route pour la suggestion de lieux via l'API OpenCage
+// Exemple d'appel: GET /api/lieux/suggestions?q=Paris
+router.get('/suggestions', authMiddleware, lieuController.suggestLieux);
 
 // Créer un nouveau lieu (nécessite d'être authentifié)
 router.post('/', authMiddleware, lieuController.createLieu);

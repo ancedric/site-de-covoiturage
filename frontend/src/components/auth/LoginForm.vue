@@ -60,7 +60,7 @@ const handleLogin = async () => {
 
 <style scoped>
 .auth-container {
-  max-width: 400px;
+  max-width: 250px;
   margin: 50px auto;
   padding: 30px;
   background-color: #fff;
@@ -99,7 +99,9 @@ input[type="password"] {
   padding: 12px;
   border: 1px solid #ddd;
   border-radius: 6px;
-  font-size: 1em;
+  font-size: 1rem;
+  background-color: transparent;
+  color: #40518b;
   box-sizing: border-box;
 }
 

@@ -3,7 +3,9 @@ import apiClient from '../services/api';
 
 export const useTripStore = defineStore('trip', {
   state: () => ({
+    allTrips: [],
     trips: [],
+    reservations: [],
     currentTrip: null,
     loading: false,
     error: null,
@@ -26,12 +28,19 @@ export const useTripStore = defineStore('trip', {
       }
     },
     async fetchTrip(userId){
-      console.log("user id: ", userId);
       try{
         const response = await apiClient.get(`/trips/my-trips/${userId}`);
         this.trips = response.data.trips;
-      } catch{
-
+      } catch(e){
+        console.error("Error fetching trips: ", e);
+      }
+    },
+    async fetchAllTrips(){
+      try{
+        const response = await apiClient.get(`/trips/`);
+        this.allTrips = response.data;
+      } catch(e){
+        console.error("Error fetching trips: ", e);
       }
     },
 
@@ -39,11 +48,9 @@ export const useTripStore = defineStore('trip', {
       this.loading = true;
       this.error = null;
       try {
-        console.log("DEBUG: Entrée dans la récupération des participants")
-        const response = await apiClient.get(`/trips/${tripId}/participants`);
-        console.log("DEBUG: Participants récupérés pour le trajet:", response.data.participants);
+        const response = await apiClient.get(`/trips/${tripId}/participants`)
         if (!response.data || !Array.isArray(response.data.participants)) {
-          throw new Error("Aucun participant trouvé ou format de données incorrect.");
+          console.log("Aucun participant trouvé ou format de données incorrect.");
         }
         return response.data.participants; // Retourne la liste des participants
       } catch (err) {
@@ -60,38 +67,29 @@ export const useTripStore = defineStore('trip', {
       this.currentTrip = null;
 
       try {
-        console.log("DEBUG: Arrivée dans le store avec l'id: ", tripId)
         const tripResponse = await apiClient.get(`/trips/${tripId}`);
         const tripData = tripResponse.data;
-        console.log("DEBUG: données du trajet sélectionné: ", tripData)
         if (!tripData || !tripData.utilisateur_id_user) {
           throw new Error("Détails du trajet ou ID du conducteur introuvable.");
         }
         
         const conducteurId = tripData.utilisateur_id_user;
-        console.log("DEBUG: Id du conducteur du trajet sélectionné: ", conducteurId)
         
         const conducteurResponse = await apiClient.get(`/users/${conducteurId}`);
         const conducteurData = conducteurResponse.data;
-        console.log("DEBUG: données du conducteur du trajet sélectionné: ", conducteurData)
         
         if (!conducteurData) {
           throw new Error("Détails du conducteur introuvable.");
         }
 
-        console.log("DEBUG: Recherche des données des participants")
         const participantsResponse = await this.getTripParticipants(tripId);
-        console.log("DEBUG: Participants du trajet sélectionné: ", participantsResponse)
         
         const mergedTripData = {
           ...tripData,
           conducteur: conducteurData,
           participants: participantsResponse || [],
         };
-        console.log("DEBUG: données extraites du trajet sélectionné: ", mergedTripData)
         this.currentTrip = mergedTripData;
-
-        console.log('DEBUG: Données complètes du trajet stockées:', this.currentTrip);
 
       } catch (err) {
         this.error = err.message;
@@ -106,18 +104,15 @@ export const useTripStore = defineStore('trip', {
       this.error = null;
 
       try {
-        const response = await apiClient.post(`/trips/${tripId}/participants`, { userId });
-        console.log('Participant ajouté avec succès:', response.data);
+        const res = await apiClient.post(`/reservations/${userId}`, {tripId})
         // Mettre à jour le trajet actuel pour refléter le nouvel état
         if (this.currentTrip && this.currentTrip.id_trajet === tripId) {
           this.currentTrip.places_disponibles -= 1; 
-          this.currentTrip.participants.push(response.data.participant); // Ajouter le participant à la liste
-          console.log('Participant ajouté au trajet actuel:', this.currentTrip.participants);
-          this.updatePlacesDisponibles(tripId, this.currentTrip.places_disponibles);
+          this.currentTrip.participants.push(userId);
         }
       } catch (err) {
-        this.error = err.response?.data?.message || 'Erreur lors de l\'ajout du participant.';
-        console.error('Erreur addParticipantToTrip:', err.response?.data || err.message);
+        this.error = err.res?.data?.message || 'Erreur lors de l\'ajout du participant.';
+        console.error('Erreur addParticipantToTrip:', err.res?.data || err.message);
       } finally {
         this.loading = false;
       }
@@ -140,7 +135,15 @@ export const useTripStore = defineStore('trip', {
         this.loading = false;
       }
     },
-
+    async fetchReservations(userId){
+      try{
+        const response = await apiClient.get(`/reservations/user/${userId}`);
+        this.reservations = response.data;
+        console.log("reservations trouvées: ", this.reservations)
+      } catch(e){
+        console.error("Error fetching reservations: ", e);
+      }
+    },
     // On ajoutera des actions pour fetchTrips, updateTrip, deleteTrip ici
   },
 });

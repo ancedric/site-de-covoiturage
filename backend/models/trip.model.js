@@ -50,11 +50,14 @@ class Trip {
 
     // Fonction pour ajouter un participant à un trajet
     static async addParticipant(tripId, participantId) {
+        console.log('Entrée dans add participant!!!')
         try {
             const result = await pool.query(
                 `UPDATE "trajet" SET participants = array_append(participants, $1) WHERE id_trajet = $2 AND NOT ($1 = ANY(participants)) RETURNING *`,
                 [participantId, tripId]
             );
+            
+                console.log("result: ", result.rows)
             if (result.rows.length > 0) {
                 return new Trip(result.rows[0]);
             }
@@ -82,7 +85,6 @@ class Trip {
         }
     }
 
-    // Corrigé: La requête SQL utilise maintenant le bon paramètre pour l'utilisateur
     static async isUserParticipant(tripId, userId) {
         try {
             const result = await pool.query(
@@ -209,7 +211,8 @@ class Trip {
             query += ` AND t.id_lieu_depart = $${paramIndex}`;
             values.push(parseInt(filters.id_lieu_depart));
             paramIndex++;
-        } else if (filters.point_depart) {
+        } 
+        if (filters.point_depart) {
             query += ` AND ld.nom_lieu ILIKE $${paramIndex}`;
             values.push(`%${filters.point_depart}%`);
             paramIndex++;
@@ -238,10 +241,6 @@ class Trip {
         // Vous pouvez ajouter d'autres filtres ici
 
         query += ` ORDER BY t.date_depart ASC, t.heure_depart ASC`;
-
-        console.log("DEBUG: Requête SQL de filtrage des trajets avec JOIN :", query);
-        console.log("DEBUG: Valeurs de filtrage :", values);
-
         try {
             const result = await pool.query(query, values);
             return result.rows.map(row => new Trip(row));

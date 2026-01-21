@@ -49,6 +49,17 @@ export const useAuthStore = defineStore('auth', {
       }
     },
 
+    async getUser(userId){
+      try{
+        const response = await apiClient.get(`/users/${userId}`)
+        return response.data
+      }catch(err){
+this.error = err.response?.data?.message || 'Identifiants invalides.';
+        console.error('Erreur connexion (store):', err.response?.data || err.message);
+        throw err;
+      }
+    },
+
     // --- Action pour la déconnexion ---
     async logout() {
       this.loading = true;

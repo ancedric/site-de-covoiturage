@@ -3,10 +3,20 @@
         <div class="header">
             <h1>Mes trajets</h1>
         </div>
-        <div class="container">
+        
+        <!-- Affichage de l'état de chargement ou d'absence de données -->
+        <div v-if="tripStore.loading || carStore.loading" class="container">
+            <p>Chargement des trajets et des véhicules...</p>
+        </div>
+        <div v-else-if="tripsWithCars.length === 0" class="container">
+            <p>Aucun trajet trouvé pour le moment.</p>
+        </div>
+
+        <!-- Liste des trajets (utilise les données réactives du computed) -->
+        <div v-else class="container">
             <TripCard 
                 v-for="tripWithCar in tripsWithCars"
-                :key="tripWithCar.trip.id"
+                :key="tripWithCar.trip.id_trajet"
                 :trip="tripWithCar.trip"
                 :car="tripWithCar.car"
                 :driver="userStore.user"
@@ -17,26 +27,34 @@
 
 <script setup>
     import TripCard from '../../components/trips/TripCard.vue'
-    import { ref, computed } from 'vue'
+    import { computed, onMounted } from 'vue'
     import { useTripStore } from '../../stores/trip.js'
     import { useAuthStore } from '../../stores/auth.js'
     import { useVoitureStore } from '../../stores/voiture.js'
     
-    const trips = ref([])
-    const cars = ref([])
+    // Initialisation des stores
     const tripStore = useTripStore()
     const userStore = useAuthStore()
     const carStore = useVoitureStore()
-    const userId = userStore.user.id_user
-    
+
+    const userId = computed(() => userStore.user?.id_user);
+
+    /**
+     * Calcule le tableau des trajets enrichis avec leur voiture correspondante.
+     * Lit directement l'état réactif des stores.
+     */
     const tripsWithCars = computed(() => {
-        if (trips.value.length === 0 || cars.value.length === 0) {
+        const tripsData = tripStore.trips
+
+
+        // Si l'une des sources est vide, retourner un tableau vide
+        if (!tripsData || tripsData.length === 0 ) {
             return [];
         }
 
-        // Pour chaque trajet, trouve la voiture correspondante par son ID
-        return trips.value.map(trip => {
-            const car = cars.value.find(car => car.id === trip.carId);
+        return tripsData.map(trip => {
+            const car = trip.vehicule_details
+
             return {
                 trip,
                 car, 
@@ -44,26 +62,28 @@
         });
     });
 
-    const fetchTrips = async () => {
-        await tripStore.fetchTrip(userId)
-        trips.value = tripStore.trips
-    }
-
-    const fetchCars = async () => {
-        await carStore.fetchMyVoitures()
-        cars.value = carStore.voitures
-    }
-    // Fonction pour récupérer les données des trajets et des voitures
+    /**
+     * Lance le chargement des données.
+     */
     const fetchData = async () => {
-        await fetchTrips();
-        await fetchCars();
+        if (userId.value) {
+            try {
+                await tripStore.fetchTrip(userId.value) 
+                await carStore.fetchMyVoitures() 
+            } catch (error) {
+                console.error("Erreur lors du chargement des données:", error)
+                // Gérer l'erreur (affichage d'un message utilisateur)
+            }
+        }
     }
 
-    fetchData();
-    
-    defineExpose({
-        trips
-    })
+    // Le hook onMounted garantit que le composant est prêt avant le fetch.
+    onMounted(() => {
+        fetchData();
+    });
+
+    // L'expose n'est plus nécessaire car vous utilisez les données dans le template.
+    // defineExpose({ trips }) 
 
 </script>
 
@@ -78,6 +98,7 @@
     text-align: center;
 }
 .container {
+    min-height: 59vh;
     padding: 20px;
     background-color: #f5f5f5;
     display: flex;
